@@ -34,3 +34,20 @@ jobs:
           context: .
           push: ${{ github.event_name == 'push' }}
           tags: ${{ env.IMAGE }}:latest
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy to prod
+        run: |
+          ssh -o StrictHostKeyChecking=no dev@prod \
+            "cd ~/server-karte && docker compose pull && docker compose up -d"
