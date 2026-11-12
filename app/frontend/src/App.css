@@ -1,59 +1,584 @@
-#app {
-    height: 100vh;
-    text-align: center;
+/* デザイン案「E 受付窓口型（改）」に合わせた見た目 */
+
+.page {
+    min-height: 100vh;
+    padding: 24px 32px 40px;
+    box-sizing: border-box;
 }
 
-#logo {
-    display: block;
-    width: 50%;
-    height: 50%;
-    margin: auto;
-    padding: 10% 0 0;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-    background-origin: content-box;
+.desk {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.result {
-    height: 20px;
-    line-height: 20px;
-    margin: 1.5rem auto;
+h1, h2 {
+    font-family: var(--font-head);
+    font-weight: 800;
+    margin: 0;
 }
 
-.input-box .btn {
-    width: 60px;
-    height: 30px;
-    line-height: 30px;
-    border-radius: 3px;
+.mono, code {
+    font-family: var(--font-mono);
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.small {
+    font-size: 13px;
+}
+
+/* 見出し（帳票の頭） */
+.masthead {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 3px double var(--ink);
+    padding-bottom: 12px;
+}
+
+.masthead-title {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.masthead-title h1 {
+    font-size: 30px;
+    letter-spacing: 0.3em;
+}
+
+.masthead-title span {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.stamp {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 2px solid var(--blue);
+    border-radius: 999px;
+    color: var(--blue);
+    font-size: 13px;
+    font-weight: 700;
+    transform: rotate(-4deg);
+}
+
+.columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+/* 用紙 */
+.paper {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    box-sizing: border-box;
+}
+
+.reception {
+    flex: 3 1 520px;
+    display: flex;
+    flex-direction: column;
+}
+
+.paper-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 18px 28px;
+    border-bottom: 2px solid var(--ink);
+}
+
+.paper-head h2 {
+    font-size: 24px;
+    letter-spacing: 0.4em;
+}
+
+.meta {
+    margin: 0;
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+}
+
+.meta div {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.meta dt {
+    color: var(--muted);
+}
+
+.meta dd {
+    margin: 0;
+    font-family: var(--font-mono);
+}
+
+/* 記入欄 */
+.fields {
+    padding: 8px 28px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 0;
+    margin: 0;
     border: none;
-    margin: 0 0 0 20px;
-    padding: 0 8px;
+    border-bottom: 1px dashed var(--line);
+}
+
+.field.last {
+    border-bottom: none;
+    align-items: baseline;
+    padding: 18px 0;
+}
+
+.field > label, .field > legend, .field-label {
+    flex: 0 0 132px;
+    width: 132px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 0 0;
+    line-height: 1.4;
+}
+
+.field > legend {
+    float: left;
+}
+
+.field.last .field-label {
+    padding-top: 0;
+}
+
+.field-text {
+    flex: 1 1 260px;
+    font-size: 15px;
+}
+
+.sub {
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.req {
+    color: var(--red);
+}
+
+.field-body {
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.line-input {
+    min-height: 44px;
+    padding: 0 12px;
+    border: none;
+    border-bottom: 2px solid var(--ink);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.line-input.mono {
+    font-family: var(--font-mono);
+    font-size: 17px;
+}
+
+.line-input:focus {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+.field > .line-input {
+    flex: 1 1 260px;
+    width: auto;
+}
+
+.host-port {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+}
+
+.host-port > input {
+    flex: 1 1 auto;
+}
+
+.port {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    flex: none;
+}
+
+.port input {
+    width: 84px;
+}
+
+.help {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.choices label, .inline-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 15px;
     cursor: pointer;
 }
 
-.input-box .btn:hover {
-    background-image: linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%);
-    color: #333333;
+.choices input, .inline-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--ink);
+    margin: 0;
 }
 
-.input-box .input {
-    border: none;
-    border-radius: 3px;
-    outline: none;
-    height: 30px;
-    line-height: 30px;
-    padding: 0 10px;
-    background-color: rgba(240, 240, 240, 1);
-    -webkit-font-smoothing: antialiased;
+.key-file {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
 }
 
-.input-box .input:hover {
-    border: none;
-    background-color: rgba(255, 255, 255, 1);
+.key-file .mono {
+    font-size: 13px;
 }
 
-.input-box .input:focus {
+button {
+    font: inherit;
+    cursor: pointer;
+}
+
+button.outline {
+    min-height: 44px;
+    padding: 0 16px;
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+/* 接続のプレビュー */
+.preview {
+    margin: 4px 28px 0;
+    padding: 14px 16px;
+    background: var(--tab);
+    border-left: 4px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.preview span {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.preview code {
+    font-size: 17px;
+    overflow-wrap: anywhere;
+}
+
+.inline-check.own {
+    margin: 12px 28px 0;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 28px 26px;
+}
+
+.submit {
+    min-height: 54px;
+    padding: 0 36px;
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.submit:disabled {
+    background: transparent;
+    color: var(--muted);
+    border-color: var(--line);
+    cursor: not-allowed;
+}
+
+/* 右の列 */
+.side {
+    flex: 2 1 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.side-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.side-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.side-head h2 {
+    font-size: 18px;
+    letter-spacing: 0.3em;
+}
+
+.empty {
+    padding: 20px 18px;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.help-box {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.help-box h2 {
+    font-size: 16px;
+    letter-spacing: 0.2em;
+}
+
+.help-box ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.help-box li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.soon {
+    font-size: 11px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1px 8px;
+}
+
+.side > p {
+    margin: 0;
+}
+
+/* S03 診察中（同じ用紙の見た目） */
+.checkup {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.checkup .paper-head .host {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--muted);
+}
+
+.steps {
+    list-style: none;
+    padding: 8px 28px;
+    margin: 0;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    border-bottom: 1px dashed var(--line);
+    font-size: 15px;
+}
+
+.step.waiting {
+    color: var(--muted);
+}
+
+.mark {
+    width: 20px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.mark.done {
+    color: var(--ok);
+}
+
+.mark.running {
+    color: var(--blue);
+    display: inline-block;
+    animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.detail {
+    color: var(--muted);
+}
+
+.checkup .actions {
+    justify-content: center;
+    flex-direction: column;
+}
+
+button.secondary {
+    min-height: 48px;
+    padding: 0 32px;
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+/* ダイアログ（S02・S06） */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(18, 50, 79, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.dialog {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--ink);
+    padding: 20px 24px;
+    max-width: 560px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dialog.danger {
+    border-top-color: var(--red);
+}
+
+.dialog.danger h2 {
+    color: var(--red);
+}
+
+.dialog h2 {
+    font-size: 19px;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+}
+
+.dialog p {
+    line-height: 1.6;
+}
+
+.label {
+    margin: 8px 0 4px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.codebox {
+    font-family: var(--font-mono);
+    word-break: break-all;
+    background: var(--tab);
+    border-left: 4px solid var(--ink);
+    padding: 8px 12px;
+    margin: 0 0 8px;
+}
+
+button.toggle {
     border: none;
-    background-color: rgba(255, 255, 255, 1);
+    background: none;
+    color: var(--blue);
+    padding: 4px 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.howto {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.dialog-buttons button {
+    min-height: 44px;
+    padding: 0 20px;
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.dialog-buttons button.primary {
+    background: var(--ink);
+    color: var(--paper);
 }
