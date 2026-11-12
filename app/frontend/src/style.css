@@ -1,26 +1,37 @@
+/* 配色：デザイン案「E 受付窓口型（改）」の標準（blue） */
+:root {
+    --desk: #DCE4EA;   /* 机（背景） */
+    --paper: #F8FBFC;  /* 用紙 */
+    --line: #9FB4C2;   /* 罫線 */
+    --ink: #12324F;    /* 文字・太線 */
+    --muted: #4F6475;  /* 補足の文字 */
+    --red: #C2410C;    /* 必須・要再検 */
+    --blue: #1B5E8C;   /* リンク・印 */
+    --tab: #E9F0F4;    /* 帯・選択中 */
+    --ok: #2E7D4F;
+    --note-bg: #FFF3C4;
+    --note-line: #E2C25A;
+
+    --font-body: 'BIZ UDPGothic', system-ui, sans-serif;
+    --font-head: 'Shippori Mincho', serif;
+    --font-mono: 'BIZ UDGothic', Consolas, monospace;
+}
+
 html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
-    color: white;
+    background-color: var(--desk);
+    color: var(--ink);
 }
 
 body {
     margin: 0;
-    color: white;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-}
-
-@font-face {
-    font-family: "Nunito";
-    font-style: normal;
-    font-weight: 400;
-    src: local(""),
-    url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+    color: var(--ink);
+    font-family: var(--font-body);
 }
 
 #app {
-    height: 100vh;
-    text-align: center;
+    min-height: 100vh;
+}
+
+input::placeholder {
+    opacity: .55;
 }

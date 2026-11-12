@@ -1,0 +1,98 @@
+export namespace main {
+	
+	export class ConnectionResult {
+	    status: string;
+	    message: string;
+	    keyType?: string;
+	    fingerprint?: string;
+	    expected?: string;
+	    os: osinfo.Info;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnectionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.message = source["message"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	        this.expected = source["expected"];
+	        this.os = this.convertValues(source["os"], osinfo.Info);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ReceptionForm {
+	    host: string;
+	    port: number;
+	    user: string;
+	    authType: string;
+	    password: string;
+	    keyPath: string;
+	    keyPassphrase: string;
+	    sudoPassword: string;
+	    webRoot: string;
+	    trustFingerprint: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReceptionForm(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.user = source["user"];
+	        this.authType = source["authType"];
+	        this.password = source["password"];
+	        this.keyPath = source["keyPath"];
+	        this.keyPassphrase = source["keyPassphrase"];
+	        this.sudoPassword = source["sudoPassword"];
+	        this.webRoot = source["webRoot"];
+	        this.trustFingerprint = source["trustFingerprint"];
+	    }
+	}
+
+}
+
+export namespace osinfo {
+	
+	export class Info {
+	    id: string;
+	    name: string;
+	    versionId: string;
+	    prettyName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.versionId = source["versionId"];
+	        this.prettyName = source["prettyName"];
+	    }
+	}
+
+}
+

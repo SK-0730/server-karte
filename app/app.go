@@ -2,26 +2,207 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"sync"
+
+	"app/internal/osinfo"
+	"app/internal/sshclient"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App struct
+// App は画面（React）から呼ばれる窓口。
 type App struct {
-	ctx context.Context
+	ctx      context.Context
+	hostKeys sshclient.HostKeyStore
+
+	mu     sync.Mutex
+	cancel context.CancelFunc // 診察中の「中止」用
 }
 
-// NewApp creates a new App application struct
+// ProgressEvent は診察中画面（S03）に進み具合を伝えるイベント。
+// Step：connect / os、Status：running / done
+const progressEvent = "checkup:progress"
+
+type ProgressEvent struct {
+	Step   string `json:"step"`
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
+}
+
+func (a *App) emitProgress(step, status, detail string) {
+	if a.ctx == nil {
+		return
+	}
+	runtime.EventsEmit(a.ctx, progressEvent, ProgressEvent{Step: step, Status: status, Detail: detail})
+}
+
+// CancelCheck は診察中の処理を中止する（S03 の「中止」）。
+func (a *App) CancelCheck() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cancel != nil {
+		a.cancel()
+	}
+}
+
+// NewApp は App を作る。
 func NewApp() *App {
-	return &App{}
+	return &App{
+		// TODO: SQLite（DATA.md の T2 host_keys）に置き換える。今はアプリを閉じると記録が消える。
+		hostKeys: sshclient.NewMemoryHostKeyStore(),
+	}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// startup はアプリ起動時に呼ばれる。
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
+// ReceptionForm は受付票の内容（F01・F02）。認証情報は保存しない。
+type ReceptionForm struct {
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	User          string `json:"user"`
+	AuthType      string `json:"authType"` // "password" または "key"
+	Password      string `json:"password"`
+	KeyPath       string `json:"keyPath"`
+	KeyPassphrase string `json:"keyPassphrase"`
+	SudoPassword  string `json:"sudoPassword"`
+	WebRoot       string `json:"webRoot"`
+
+	// TrustFingerprint は、ホスト鍵の確認画面で利用者が「接続する」を押した指紋。
+	TrustFingerprint string `json:"trustFingerprint"`
+}
+
+// ConnectionResult は接続確認の結果。
+//
+// Status の値
+//   - "ok"                 接続・OS判定・sudo確認まで成功
+//   - "hostkey_unknown"    はじめてのサーバー。指紋を確認してもらう
+//   - "hostkey_mismatch"   指紋が記録と違う。接続しない
+//   - "unsupported_os"     Ubuntu以外
+//   - "error"              接続・認証・sudoなどのエラー
+//   - "canceled"           利用者が中止した
+type ConnectionResult struct {
+	Status      string      `json:"status"`
+	Message     string      `json:"message"`
+	KeyType     string      `json:"keyType,omitempty"`
+	Fingerprint string      `json:"fingerprint,omitempty"`
+	Expected    string      `json:"expected,omitempty"`
+	OS          osinfo.Info `json:"os"`
+}
+
+// SelectKeyFile は秘密鍵ファイルを選ぶダイアログを開き、選ばれた場所を返す。
+// 鍵の中身は読まない（読むのは接続するときだけ）。
+func (a *App) SelectKeyFile() (string, error) {
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "秘密鍵ファイルを選ぶ",
+	})
+}
+
+// CheckConnection は受付票の内容でサーバーに接続し、OS判定とsudoの確認まで行う（WBS 3.1〜3.3）。
+func (a *App) CheckConnection(form ReceptionForm) ConnectionResult {
+	base := a.ctx
+	if base == nil {
+		base = context.Background()
+	}
+	ctx, cancel := context.WithCancel(base)
+	a.mu.Lock()
+	a.cancel = cancel
+	a.mu.Unlock()
+	defer func() {
+		cancel()
+		a.mu.Lock()
+		a.cancel = nil
+		a.mu.Unlock()
+	}()
+
+	// ① 接続（SSH接続・ホスト鍵の確認・sudoの確認）
+	a.emitProgress("connect", "running", "")
+	client, err := sshclient.Dial(ctx, sshclient.Config{
+		Host:             form.Host,
+		Port:             form.Port,
+		User:             form.User,
+		AuthType:         sshclient.AuthType(form.AuthType),
+		Password:         form.Password,
+		KeyPath:          form.KeyPath,
+		KeyPassphrase:    form.KeyPassphrase,
+		SudoPassword:     form.SudoPassword,
+		TrustFingerprint: form.TrustFingerprint,
+	}, a.hostKeys)
+	if err != nil {
+		if ctx.Err() != nil {
+			return canceledResult()
+		}
+		return dialErrorResult(err)
+	}
+	defer client.Close()
+
+	if err := client.CheckSudo(ctx); err != nil {
+		if ctx.Err() != nil {
+			return canceledResult()
+		}
+		return ConnectionResult{Status: "error", Message: "sudoパスワードが違うか、このユーザーにsudo権限がありません"}
+	}
+	a.emitProgress("connect", "done", "")
+
+	// ② OSの確認
+	a.emitProgress("os", "running", "")
+	info, err := osinfo.Detect(ctx, client)
+	if err != nil {
+		if ctx.Err() != nil {
+			return canceledResult()
+		}
+		return ConnectionResult{Status: "error", Message: "診断中に接続が切れたか、OS情報を読み取れませんでした。もう一度お試しください"}
+	}
+	if !info.Supported() {
+		name := info.PrettyName
+		if name == "" {
+			name = info.ID
+		}
+		return ConnectionResult{
+			Status:  "unsupported_os",
+			Message: "このサーバーは " + name + " です。現在はUbuntuのみ対応しています",
+			OS:      info,
+		}
+	}
+	a.emitProgress("os", "done", info.Name+" "+info.VersionID)
+
+	// ③ 各診断（WBS 4.1〜4.4 で追加する）
+
+	return ConnectionResult{Status: "ok", Message: "接続とOSの確認ができました", OS: info}
+}
+
+func canceledResult() ConnectionResult {
+	return ConnectionResult{Status: "canceled", Message: "診察を中止しました"}
+}
+
+func dialErrorResult(err error) ConnectionResult {
+	var unknown *sshclient.UnknownHostKeyError
+	var mismatch *sshclient.HostKeyMismatchError
+	switch {
+	case errors.As(err, &unknown):
+		return ConnectionResult{
+			Status:      "hostkey_unknown",
+			Message:     "はじめて接続するサーバーです",
+			KeyType:     unknown.KeyType,
+			Fingerprint: unknown.Fingerprint,
+		}
+	case errors.As(err, &mismatch):
+		return ConnectionResult{
+			Status:      "hostkey_mismatch",
+			Message:     "サーバーの指紋が記録と違います。サーバーがすり替わっている可能性があるため、接続を中止しました",
+			KeyType:     mismatch.KeyType,
+			Fingerprint: mismatch.Actual,
+			Expected:    mismatch.Expected,
+		}
+	case errors.Is(err, sshclient.ErrAuth):
+		return ConnectionResult{Status: "error", Message: "ユーザー名またはパスワード（鍵）が違います"}
+	case errors.Is(err, sshclient.ErrKeyFile):
+		return ConnectionResult{Status: "error", Message: "鍵ファイルを読み込めませんでした。場所とパスフレーズを確認してください"}
+	default:
+		// ErrConnect などはメッセージにパスワードを含まない
+		return ConnectionResult{Status: "error", Message: err.Error() + "。IPアドレスとポート、サーバーが起動しているかを確認してください"}
+	}
 }
