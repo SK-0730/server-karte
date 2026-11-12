@@ -582,3 +582,195 @@ button.toggle {
     background: var(--ink);
     color: var(--paper);
 }
+
+/* 判定（A〜E）。色だけでなく濃さでも見分けられるように、D・E は塗りつぶす */
+.grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border: 2px solid currentColor;
+    border-radius: 4px;
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 18px;
+    background: var(--paper);
+}
+
+.grade.big {
+    width: 72px;
+    height: 72px;
+    font-size: 44px;
+    border-width: 3px;
+    transform: rotate(-4deg);
+}
+
+.grade-A { color: var(--grade-a); }
+.grade-B { color: var(--grade-b); }
+.grade-C { color: var(--grade-c); }
+.grade-D { color: #fff; background: var(--grade-d); border-color: var(--grade-d); }
+.grade-E { color: #fff; background: var(--grade-e); border-color: var(--grade-e); }
+
+/* S04 カルテ */
+.overall {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--line);
+    background: var(--tab);
+}
+
+.overall-label {
+    font-family: var(--font-head);
+    font-weight: 800;
+    letter-spacing: 0.2em;
+}
+
+.overall-message {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.check-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 28px;
+}
+
+.check-list li {
+    border-bottom: 1px dashed var(--line);
+}
+
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+}
+
+button.check-row:hover {
+    background: var(--tab);
+}
+
+.check-row.pending {
+    color: var(--muted);
+}
+
+.check-name {
+    flex: 0 0 160px;
+    font-weight: 700;
+}
+
+.check-summary {
+    flex: 1 1 auto;
+}
+
+.chevron {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 20px;
+}
+
+.check-row.pending .soon {
+    margin-left: auto;
+}
+
+/* S05 所見の詳細 */
+button.back {
+    border: none;
+    background: none;
+    color: var(--blue);
+    padding: 0;
+    font-size: 14px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    margin-right: auto;
+}
+
+.paper-head:has(.back) {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 16px;
+}
+
+.detail-sub {
+    margin: 12px 28px 0;
+}
+
+.findings {
+    list-style: none;
+    margin: 0;
+    padding: 8px 28px;
+}
+
+.finding {
+    border-bottom: 1px dashed var(--line);
+}
+
+.finding-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+}
+
+.finding-title {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.finding-body {
+    padding: 4px 4px 18px 50px;
+}
+
+.finding-body h3 {
+    margin: 14px 0 4px;
+    font-size: 14px;
+    font-family: var(--font-body);
+    border-left: 4px solid var(--ink);
+    padding-left: 8px;
+}
+
+.finding-body p {
+    margin: 0;
+    line-height: 1.7;
+    font-size: 14px;
+}
+
+.steps-text {
+    white-space: pre-line;
+}
+
+.ai-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.evidence {
+    padding: 8px 28px 24px;
+}
+
+.evidence pre {
+    white-space: pre;
+    overflow-x: auto;
+    font-size: 12px;
+    max-height: 320px;
+}

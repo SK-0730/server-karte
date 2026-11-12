@@ -4,6 +4,6 @@ import {main} from '../models';
 
 export function CancelCheck():Promise<void>;
 
-export function CheckConnection(arg1:main.ReceptionForm):Promise<main.ConnectionResult>;
+export function Diagnose(arg1:main.ReceptionForm):Promise<main.ConnectionResult>;
 
 export function SelectKeyFile():Promise<string>;

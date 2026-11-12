@@ -1,16 +1,18 @@
 // 画面の切り替え（docs/SCREENS.md の画面遷移図）
-//   S01 受付票 →（はじめて／指紋が違う）S02 → S03 診察中 →（失敗）S06 エラー → S01
+//   S01 受付票 →（はじめて／指紋が違う）S02 → S03 診察中 → S04 カルテ ⇄ S05 所見の詳細
+//                                             └（失敗）S06 エラー → S01
 import {useEffect, useState} from 'react';
 import './App.css';
-import {CancelCheck, CheckConnection} from '../wailsjs/go/main/App';
+import {CancelCheck, Diagnose} from '../wailsjs/go/main/App';
 import {main} from '../wailsjs/go/models';
 import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
 import {effectiveSudo, emptyForm, Form, Reception} from './screens/Reception';
 import {HostKeyDialog} from './screens/HostKeyDialog';
 import {Checkup, initialSteps, Step} from './screens/Checkup';
 import {ErrorDialog} from './screens/ErrorDialog';
+import {Karte} from './screens/Karte';
 
-type Screen = 'reception' | 'checkup';
+type Screen = 'reception' | 'checkup' | 'karte';
 
 type Dialog =
     | { kind: 'none' }
@@ -25,7 +27,7 @@ function App() {
     const [screen, setScreen] = useState<Screen>('reception');
     const [dialog, setDialog] = useState<Dialog>({kind: 'none'});
     const [steps, setSteps] = useState<Step[]>(initialSteps());
-    const [finished, setFinished] = useState(false);
+    const [result, setResult] = useState<main.ConnectionResult | null>(null);
 
     // Go 側から届く進み具合（S03）
     useEffect(() => {
@@ -35,20 +37,29 @@ function App() {
         return () => EventsOff('checkup:progress');
     }, []);
 
+    const title = form.name.trim() ? `${form.name.trim()}（${form.host.trim()}）` : form.host.trim();
+
     function backToReception() {
         setScreen('reception');
         setDialog({kind: 'none'});
     }
 
+    // 「新しく受付」：認証情報をメモリから消す（SCREENS.md の決定 3）
+    function newReception() {
+        setForm(emptyForm);
+        setResult(null);
+        backToReception();
+    }
+
     async function start(trustFingerprint = '') {
         setDialog({kind: 'none'});
         setSteps(initialSteps());
-        setFinished(false);
+        setResult(null);
         setScreen('checkup');
 
         let res: main.ConnectionResult;
         try {
-            res = await CheckConnection(main.ReceptionForm.createFrom({
+            res = await Diagnose(main.ReceptionForm.createFrom({
                 host: form.host.trim(),
                 port: Number(form.port),
                 user: form.user.trim(),
@@ -67,7 +78,8 @@ function App() {
 
         switch (res.status) {
             case 'ok':
-                setFinished(true);
+                setResult(res);
+                setScreen('karte');
                 break;
             case 'hostkey_unknown':
                 setScreen('reception');
@@ -89,8 +101,12 @@ function App() {
         <div className="page">
             {screen === 'reception' && <Reception form={form} onChange={setForm} onSubmit={() => start()}/>}
             {screen === 'checkup' && (
-                <Checkup host={form.name.trim() ? `${form.name.trim()}（${form.host.trim()}）` : form.host.trim()} steps={steps} finished={finished}
-                         onCancel={() => CancelCheck()} onBack={backToReception}/>
+                <Checkup host={title} steps={steps} onCancel={() => CancelCheck()}/>
+            )}
+            {screen === 'karte' && result && (
+                <Karte title={title} result={result}
+                       maskTargets={{host: form.host, user: form.user, name: form.name}}
+                       onRetry={() => start()} onNew={newReception}/>
             )}
 
             {dialog.kind === 'hostkey-unknown' && (
