@@ -11,6 +11,7 @@ import (
 	"app/internal/karte"
 	"app/internal/osinfo"
 	"app/internal/sshclient"
+	"app/internal/store"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -19,6 +20,9 @@ import (
 type App struct {
 	ctx      context.Context
 	hostKeys sshclient.HostKeyStore
+
+	store    *store.Store // 開けなかったときは nil（記録なしで動く）
+	storeErr string
 
 	mu     sync.Mutex
 	cancel context.CancelFunc // 診察中の「中止」用
@@ -52,15 +56,66 @@ func (a *App) CancelCheck() {
 
 // NewApp は App を作る。
 func NewApp() *App {
-	return &App{
-		// TODO: SQLite（DATA.md の T2 host_keys）に置き換える。今はアプリを閉じると記録が消える。
-		hostKeys: sshclient.NewMemoryHostKeyStore(),
+	// 保存先を開けるまでは、メモリ上の記録を使う
+	return &App{hostKeys: sshclient.NewMemoryHostKeyStore()}
+}
+
+// appVersion は受診の記録に残すアプリのバージョン（判定の基準が変わったときの比較用）。
+const appVersion = "0.2.0"
+
+// startup はアプリ起動時に呼ばれる。保存先（SQLite）を開く。
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+	path, err := store.DefaultPath()
+	if err == nil {
+		a.store, err = store.Open(path)
+	}
+	if err != nil {
+		// 開けなくても診断はできるようにする。ホスト鍵はアプリを閉じるまでメモリに置く。
+		a.store = nil
+		a.storeErr = "記録の保存先を開けませんでした。今回の記録はアプリを閉じると消えます（" + err.Error() + "）"
+		return
+	}
+	a.hostKeys = a.store
+}
+
+// shutdown はアプリ終了時に呼ばれる。
+func (a *App) shutdown(_ context.Context) {
+	if a.store != nil {
+		a.store.Close()
 	}
 }
 
-// startup はアプリ起動時に呼ばれる。
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+// ServerList は「再診の方」の一覧。
+type ServerList struct {
+	Servers []store.Server `json:"servers"`
+	Error   string         `json:"error,omitempty"`
+}
+
+// ListServers は保存した受付票を、最近使った順に返す。
+func (a *App) ListServers() ServerList {
+	if a.store == nil {
+		return ServerList{Servers: []store.Server{}, Error: a.storeErr}
+	}
+	list, err := a.store.ListServers()
+	if err != nil {
+		return ServerList{Servers: []store.Server{}, Error: "記録を読み込めませんでした（" + err.Error() + "）"}
+	}
+	if list == nil {
+		list = []store.Server{}
+	}
+	return ServerList{Servers: list}
+}
+
+// DeleteServer は受付票と、その受診の記録を消す。
+func (a *App) DeleteServer(id int64) string {
+	if a.store == nil {
+		return a.storeErr
+	}
+	if err := a.store.DeleteServer(id); err != nil {
+		return "消せませんでした（" + err.Error() + "）"
+	}
+	return ""
 }
 
 // ReceptionForm は受付票の内容（F01・F02）。認証情報は保存しない。
@@ -74,6 +129,7 @@ type ReceptionForm struct {
 	KeyPassphrase string `json:"keyPassphrase"`
 	SudoPassword  string `json:"sudoPassword"`
 	WebRoot       string `json:"webRoot"`
+	Label         string `json:"label"` // 呼び名（任意）
 
 	// TrustFingerprint は、ホスト鍵の確認画面で利用者が「接続する」を押した指紋。
 	TrustFingerprint string `json:"trustFingerprint"`
@@ -101,6 +157,7 @@ type ConnectionResult struct {
 	GradeLabel   string              `json:"gradeLabel,omitempty"`
 	Checks       []karte.CheckResult `json:"checks,omitempty"`
 	FinishedAt   string              `json:"finishedAt,omitempty"`
+	SaveWarning  string              `json:"saveWarning,omitempty"` // 記録を保存できなかったとき
 }
 
 // SelectKeyFile は秘密鍵ファイルを選ぶダイアログを開き、選ばれた場所を返す。
@@ -113,6 +170,7 @@ func (a *App) SelectKeyFile() (string, error) {
 
 // Diagnose は受付票の内容でサーバーに接続し、OS判定・sudoの確認のあと、各診断を行う（WBS 3.1〜4.1）。
 func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
+	startedAt := time.Now()
 	base := a.ctx
 	if base == nil {
 		base = context.Background()
@@ -200,15 +258,47 @@ func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	// 一覧は判定の悪い順（SCREENS.md S04）
 	sort.SliceStable(checks, func(i, j int) bool { return checks[i].Grade > checks[j].Grade })
 
+	saveWarning := a.saveRecord(form, info, overall, startedAt)
+
 	return ConnectionResult{
 		Status:       "ok",
 		Message:      "診断が終わりました",
+		SaveWarning:  saveWarning,
 		OS:           info,
 		OverallGrade: overall,
 		GradeLabel:   karte.GradeLabel(overall),
 		Checks:       checks,
 		FinishedAt:   time.Now().Format("2006/01/02 15:04"),
 	}
+}
+
+// saveRecord は受付票（認証情報以外）と受診の記録を保存する。失敗しても診断結果は表示する。
+func (a *App) saveRecord(form ReceptionForm, info osinfo.Info, overall karte.Grade, startedAt time.Time) string {
+	if a.store == nil {
+		return a.storeErr
+	}
+	port := form.Port
+	if port == 0 {
+		port = 22
+	}
+	keyPath := ""
+	if form.AuthType == string(sshclient.AuthKey) {
+		keyPath = form.KeyPath // 鍵の「場所」だけ。鍵の中身は保存しない
+	}
+	id, err := a.store.SaveServer(store.Server{
+		Host: form.Host, Port: port, User: form.User, AuthType: form.AuthType,
+		KeyPath: keyPath, WebRoot: form.WebRoot, Label: form.Label,
+	})
+	if err == nil {
+		err = a.store.SaveDiagnosis(store.Diagnosis{
+			ServerID: id, StartedAt: startedAt, FinishedAt: time.Now(), Status: "completed",
+			OSName: info.Name, OSVersion: info.VersionID, OverallGrade: string(overall), AppVersion: appVersion,
+		})
+	}
+	if err != nil {
+		return "記録を保存できませんでした（" + err.Error() + "）"
+	}
+	return ""
 }
 
 func canceledResult() ConnectionResult {

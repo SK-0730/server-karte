@@ -4,6 +4,10 @@ import {main} from '../models';
 
 export function CancelCheck():Promise<void>;
 
+export function DeleteServer(arg1:number):Promise<string>;
+
 export function Diagnose(arg1:main.ReceptionForm):Promise<main.ConnectionResult>;
+
+export function ListServers():Promise<main.ServerList>;
 
 export function SelectKeyFile():Promise<string>;

@@ -74,6 +74,8 @@ export function Karte({title, result, maskTargets, onRetry, onNew}: Props) {
                     </div>
                 </div>
 
+                {result.saveWarning && <p className="store-error small save-warning">{result.saveWarning}</p>}
+
                 <ul className="check-list">
                     {rows.map(r => 'pending' in r ? (
                         <li key={r.checkId} className="check-row pending">
