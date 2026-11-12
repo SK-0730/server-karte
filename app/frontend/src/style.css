@@ -35,3 +35,11 @@ body {
 input::placeholder {
     opacity: .55;
 }
+
+:root {
+    --grade-a: #2E7D4F;
+    --grade-b: #1B5E8C;
+    --grade-c: #8A5A00;
+    --grade-d: #C2410C;
+    --grade-e: #9F1239;
+}

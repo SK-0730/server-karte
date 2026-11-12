@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
+	"time"
 
+	"app/internal/checks/ports"
+	"app/internal/karte"
 	"app/internal/osinfo"
 	"app/internal/sshclient"
 
@@ -91,6 +95,12 @@ type ConnectionResult struct {
 	Fingerprint string      `json:"fingerprint,omitempty"`
 	Expected    string      `json:"expected,omitempty"`
 	OS          osinfo.Info `json:"os"`
+
+	// 以下は Status が "ok" のときだけ入る（S04 カルテ）
+	OverallGrade karte.Grade         `json:"overallGrade,omitempty"`
+	GradeLabel   string              `json:"gradeLabel,omitempty"`
+	Checks       []karte.CheckResult `json:"checks,omitempty"`
+	FinishedAt   string              `json:"finishedAt,omitempty"`
 }
 
 // SelectKeyFile は秘密鍵ファイルを選ぶダイアログを開き、選ばれた場所を返す。
@@ -101,8 +111,8 @@ func (a *App) SelectKeyFile() (string, error) {
 	})
 }
 
-// CheckConnection は受付票の内容でサーバーに接続し、OS判定とsudoの確認まで行う（WBS 3.1〜3.3）。
-func (a *App) CheckConnection(form ReceptionForm) ConnectionResult {
+// Diagnose は受付票の内容でサーバーに接続し、OS判定・sudoの確認のあと、各診断を行う（WBS 3.1〜4.1）。
+func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	base := a.ctx
 	if base == nil {
 		base = context.Background()
@@ -169,9 +179,36 @@ func (a *App) CheckConnection(form ReceptionForm) ConnectionResult {
 	}
 	a.emitProgress("os", "done", info.Name+" "+info.VersionID)
 
-	// ③ 各診断（WBS 4.1〜4.4 で追加する）
+	// ③ 各診断（SSH設定・不要ファイル・パッケージ更新は WBS 4.2〜4.4 で追加する）
+	var checks []karte.CheckResult
 
-	return ConnectionResult{Status: "ok", Message: "接続とOSの確認ができました", OS: info}
+	a.emitProgress(ports.CheckID, "running", "")
+	portRes, err := ports.Run(ctx, client)
+	if err != nil {
+		if ctx.Err() != nil {
+			return canceledResult()
+		}
+		return ConnectionResult{Status: "error", Message: "ポート診断の途中で失敗しました。もう一度お試しください（" + err.Error() + "）", OS: info}
+	}
+	checks = append(checks, portRes)
+	a.emitProgress(ports.CheckID, "done", portRes.Summary)
+
+	overall := karte.GradeA
+	for _, c := range checks {
+		overall = karte.Worse(overall, c.Grade)
+	}
+	// 一覧は判定の悪い順（SCREENS.md S04）
+	sort.SliceStable(checks, func(i, j int) bool { return checks[i].Grade > checks[j].Grade })
+
+	return ConnectionResult{
+		Status:       "ok",
+		Message:      "診断が終わりました",
+		OS:           info,
+		OverallGrade: overall,
+		GradeLabel:   karte.GradeLabel(overall),
+		Checks:       checks,
+		FinishedAt:   time.Now().Format("2006/01/02 15:04"),
+	}
 }
 
 func canceledResult() ConnectionResult {

@@ -6,8 +6,8 @@ export function CancelCheck() {
   return window['go']['main']['App']['CancelCheck']();
 }
 
-export function CheckConnection(arg1) {
-  return window['go']['main']['App']['CheckConnection'](arg1);
+export function Diagnose(arg1) {
+  return window['go']['main']['App']['Diagnose'](arg1);
 }
 
 export function SelectKeyFile() {
