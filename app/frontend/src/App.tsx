@@ -3,8 +3,8 @@
 //                                             └（失敗）S06 エラー → S01
 import {useEffect, useState} from 'react';
 import './App.css';
-import {CancelCheck, Diagnose} from '../wailsjs/go/main/App';
-import {main} from '../wailsjs/go/models';
+import {CancelCheck, Diagnose, ListServers} from '../wailsjs/go/main/App';
+import {main, store} from '../wailsjs/go/models';
 import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
 import {effectiveSudo, emptyForm, Form, Reception} from './screens/Reception';
 import {HostKeyDialog} from './screens/HostKeyDialog';
@@ -28,6 +28,22 @@ function App() {
     const [dialog, setDialog] = useState<Dialog>({kind: 'none'});
     const [steps, setSteps] = useState<Step[]>(initialSteps());
     const [result, setResult] = useState<main.ConnectionResult | null>(null);
+    const [servers, setServers] = useState<store.Server[]>([]);
+    const [storeError, setStoreError] = useState('');
+
+    async function loadServers() {
+        try {
+            const list = await ListServers();
+            setServers(list.servers ?? []);
+            setStoreError(list.error ?? '');
+        } catch (e) {
+            setStoreError(String(e));
+        }
+    }
+
+    useEffect(() => {
+        loadServers();
+    }, []);
 
     // Go 側から届く進み具合（S03）
     useEffect(() => {
@@ -69,6 +85,7 @@ function App() {
                 keyPassphrase: form.authType === 'key' ? form.keyPassphrase : '',
                 sudoPassword: effectiveSudo(form),
                 webRoot: form.webRoot.trim(),
+                label: form.name.trim(),
                 trustFingerprint,
             }));
         } catch (e) {
@@ -80,6 +97,7 @@ function App() {
             case 'ok':
                 setResult(res);
                 setScreen('karte');
+                loadServers();
                 break;
             case 'hostkey_unknown':
                 setScreen('reception');
@@ -99,7 +117,8 @@ function App() {
 
     return (
         <div className="page">
-            {screen === 'reception' && <Reception form={form} onChange={setForm} onSubmit={() => start()}/>}
+            {screen === 'reception' && <Reception form={form} onChange={setForm} onSubmit={() => start()}
+                                                       servers={servers} storeError={storeError}/>}
             {screen === 'checkup' && (
                 <Checkup host={title} steps={steps} onCancel={() => CancelCheck()}/>
             )}

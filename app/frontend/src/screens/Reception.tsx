@@ -1,7 +1,8 @@
 // S01 受付票（docs/SCREENS.md）
 // 見た目はデザイン案「E 受付窓口型（改）」に合わせる。
-import {FormEvent} from 'react';
+import {FormEvent, useState} from 'react';
 import {SelectKeyFile} from '../../wailsjs/go/main/App';
+import {store} from '../../wailsjs/go/models';
 
 export type AuthType = 'password' | 'key';
 
@@ -68,13 +69,59 @@ type Props = {
     form: Form;
     onChange: (form: Form) => void;
     onSubmit: () => void;
+    servers: store.Server[]; // 再診の方（保存した受付票）
+    storeError?: string;
 };
 
-export function Reception({form, onChange, onSubmit}: Props) {
+// 前回の判定を、診察券の判子のことばにする
+function stampOf(sv: store.Server): { text: string; tone: 'bad' | 'good' | 'new' } {
+    if (!sv.lastGrade) return {text: '初診', tone: 'new'};
+    if (sv.lastGrade === 'A' || sv.lastGrade === 'B') return {text: '異常なし', tone: 'good'};
+    return {text: '要再検', tone: 'bad'};
+}
+
+function formatDate(iso: string): string {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function Reception({form, onChange, onSubmit, servers, storeError}: Props) {
     const errors = validate(form);
     const ready = errors.length === 0;
+    const [picked, setPicked] = useState<number | null>(null);
+    const [filledFrom, setFilledFrom] = useState('');
 
-    const set = <K extends keyof Form>(key: K, value: Form[K]) => onChange({...form, [key]: value});
+    const set = <K extends keyof Form>(key: K, value: Form[K]) => {
+        // 接続先・ユーザー名を書き換えたら、「再診の方」から選んだ状態は解除する
+        if (key === 'host' || key === 'user') {
+            setPicked(null);
+            setFilledFrom('');
+        }
+        onChange({...form, [key]: value});
+    };
+
+    // 再診の方を選ぶと、受付票に書き写す（パスワードは保存していないので、毎回入力してもらう）
+    function pick(sv: store.Server) {
+        setPicked(sv.id);
+        setFilledFrom(sv.label || `${sv.user}@${sv.host}`);
+        onChange({
+            ...emptyForm,
+            host: sv.host,
+            port: String(sv.port || 22),
+            user: sv.user,
+            authType: sv.authType === 'key' ? 'key' : 'password',
+            keyPath: sv.keyPath,
+            webRoot: sv.webRoot,
+            name: sv.label,
+        });
+    }
+
+    function reset() {
+        setPicked(null);
+        setFilledFrom('');
+        onChange(emptyForm);
+    }
 
     function submit(e: FormEvent) {
         e.preventDefault();
@@ -112,6 +159,13 @@ export function Reception({form, onChange, onSubmit}: Props) {
                             <div><dt>受付日</dt><dd>{today()}</dd></div>
                         </dl>
                     </div>
+
+                    {filledFrom && (
+                        <div className="filled-note">
+                            <span role="status">「{filledFrom}」の記録を受付票に書き写しました。パスワードを入力して、内容を確認してください。</span>
+                            <button type="button" className="link-button" onClick={reset}>白紙に戻す</button>
+                        </div>
+                    )}
 
                     <div className="fields">
                         <div className="field">
@@ -239,10 +293,32 @@ export function Reception({form, onChange, onSubmit}: Props) {
                             <h2>再診の方</h2>
                             <span className="muted small">選ぶと受付票に書き写します</span>
                         </div>
-                        <div className="paper empty">
-                            受診の記録はまだありません。<br/>
-                            <span className="muted small">記録の保存は準備中です。</span>
-                        </div>
+                        {servers.length === 0 ? (
+                            <div className="paper empty">
+                                受診の記録はまだありません。<br/>
+                                <span className="muted small">一度診断すると、ここに並びます。</span>
+                            </div>
+                        ) : (
+                            <div className="paper patients">
+                                {servers.map(sv => {
+                                    const stamp = stampOf(sv);
+                                    return (
+                                        <button key={sv.id} type="button" className={`patient${picked === sv.id ? ' picked' : ''}`}
+                                                aria-pressed={picked === sv.id} onClick={() => pick(sv)}>
+                                            <span className="patient-text">
+                                                <span className="patient-name">{sv.label || sv.host}</span>
+                                                <span className="mono muted small">{sv.user}@{sv.host}{sv.port !== 22 ? `:${sv.port}` : ''}</span>
+                                                <span className="muted small">
+                                                    {sv.lastDiagnosedAt ? `前回 ${formatDate(sv.lastDiagnosedAt)} 受診・判定 ${sv.lastGrade}` : 'まだ受診していません'}
+                                                </span>
+                                            </span>
+                                            <span className={`patient-stamp ${stamp.tone}`}>{stamp.text}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {storeError && <p className="store-error small">{storeError}</p>}
                     </section>
 
                     <section className="paper help-box">
@@ -254,7 +330,7 @@ export function Reception({form, onChange, onSubmit}: Props) {
                         </ul>
                     </section>
 
-                    <p className="muted small">接続情報と診断結果は、このPCの外には送りません。</p>
+                    <p className="muted small">接続情報（パスワードを除く）と受診の記録は、このPCの中にだけ保管されます。</p>
                 </aside>
             </div>
         </div>

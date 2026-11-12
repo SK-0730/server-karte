@@ -6,8 +6,16 @@ export function CancelCheck() {
   return window['go']['main']['App']['CancelCheck']();
 }
 
+export function DeleteServer(arg1) {
+  return window['go']['main']['App']['DeleteServer'](arg1);
+}
+
 export function Diagnose(arg1) {
   return window['go']['main']['App']['Diagnose'](arg1);
+}
+
+export function ListServers() {
+  return window['go']['main']['App']['ListServers']();
 }
 
 export function SelectKeyFile() {
