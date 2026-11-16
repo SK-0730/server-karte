@@ -8,14 +8,14 @@ export type Step = {
     label: string;
     status: StepStatus;
     detail?: string;
-    ready: boolean; // false の診断はまだ作っていない（WBS 4.2〜4.4）
+    ready: boolean; // false の診断はまだ作っていない（WBS 4.3〜4.4）
 };
 
 export const initialSteps = (): Step[] => [
     {id: 'connect', label: '接続', status: 'waiting', ready: true},
     {id: 'os', label: 'OSの確認', status: 'waiting', ready: true},
     {id: 'ports', label: 'ポート診断', status: 'waiting', ready: true},
-    {id: 'sshconfig', label: 'SSH設定診断', status: 'waiting', ready: false},
+    {id: 'sshconfig', label: 'SSH設定診断', status: 'waiting', ready: true},
     {id: 'files', label: '不要ファイル診断', status: 'waiting', ready: false},
     {id: 'packages', label: 'パッケージ更新診断', status: 'waiting', ready: false},
 ];
