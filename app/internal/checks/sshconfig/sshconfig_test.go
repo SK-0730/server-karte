@@ -69,8 +69,8 @@ func TestParseWhere(t *testing.T) {
 
 func TestAnalyzePasswordLogin(t *testing.T) {
 	res := Analyze(ParseEffective(effHoles), ParseWhere(whereHoles))
-	if res.Grade != karte.GradeC {
-		t.Errorf("判定 = %s, want C", res.Grade)
+	if res.Grade != karte.GradeD {
+		t.Errorf("判定 = %s, want D", res.Grade)
 	}
 	if got := codes(res); len(got) != 1 || got[0] != "SSH_PASSWORD_LOGIN" {
 		t.Fatalf("所見 = %v", got)
@@ -99,8 +99,8 @@ func TestAnalyzeKbdInteractive(t *testing.T) {
 	// PasswordAuthentication だけ no にしても、PAM＋キーボード対話認証でパスワードが通る
 	eff := ParseEffective(strings.Replace(effClean, "kbdinteractiveauthentication no", "kbdinteractiveauthentication yes", 1))
 	res := Analyze(eff, nil)
-	if got := codes(res); len(got) != 1 || got[0] != "SSH_KBDINTERACTIVE_LOGIN" {
-		t.Fatalf("所見 = %v", got)
+	if got := codes(res); len(got) != 1 || got[0] != "SSH_KBDINTERACTIVE_LOGIN" || res.Grade != karte.GradeD {
+		t.Fatalf("所見 = %v 判定 = %s", got, res.Grade)
 	}
 	if !strings.Contains(res.Findings[0].What, "kbdinteractiveauthentication") {
 		t.Errorf("項目名が説明に入っていない: %s", res.Findings[0].What)
@@ -140,9 +140,12 @@ func TestAnalyzeRootAndEmpty(t *testing.T) {
 		t.Errorf("判定 = %s, want E", res.Grade)
 	}
 	got := codes(res)
-	want := []string{"SSH_EMPTY_PASSWORD", "SSH_ROOT_PASSWORD_LOGIN", "SSH_PASSWORD_LOGIN"} // 悪い順
+	want := []string{"SSH_EMPTY_PASSWORD", "SSH_ROOT_PASSWORD_LOGIN", "SSH_PASSWORD_LOGIN"} // 悪い順（同じ判定は見つけた順）
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("所見 = %v, want %v", got, want)
+	}
+	if res.Findings[1].Grade != karte.GradeE {
+		t.Errorf("root＋パスワードは E: %s", res.Findings[1].Grade)
 	}
 	if !strings.Contains(res.Findings[0].What, "設定ファイルには書かれていません") {
 		t.Errorf("場所が分からないときの説明: %s", res.Findings[0].What)
@@ -170,7 +173,7 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.CheckID != CheckID || res.Grade != karte.GradeC {
+	if res.CheckID != CheckID || res.Grade != karte.GradeD {
 		t.Errorf("%+v", res)
 	}
 	if !strings.Contains(res.Evidence, "passwordauthentication yes") || strings.Contains(res.Evidence, "hostkey") {

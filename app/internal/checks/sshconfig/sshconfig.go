@@ -153,13 +153,13 @@ func Analyze(eff map[string]string, locs []Location) karte.CheckResult {
 	}
 
 	if password {
-		add("SSH_PASSWORD_LOGIN", karte.GradeC, map[string]string{"where": where(locs, "passwordauthentication")})
+		add("SSH_PASSWORD_LOGIN", karte.GradeD, map[string]string{"where": where(locs, "passwordauthentication")})
 	} else if kbd {
 		key := "kbdinteractiveauthentication"
 		if !yes(key) {
 			key = "challengeresponseauthentication"
 		}
-		add("SSH_KBDINTERACTIVE_LOGIN", karte.GradeC, map[string]string{"key": key, "where": where(locs, key)})
+		add("SSH_KBDINTERACTIVE_LOGIN", karte.GradeD, map[string]string{"key": key, "where": where(locs, key)})
 	}
 
 	if passwordLike && yes("permitemptypasswords") {
@@ -169,7 +169,7 @@ func Analyze(eff map[string]string, locs []Location) karte.CheckResult {
 	switch eff["permitrootlogin"] {
 	case "yes":
 		if passwordLike {
-			add("SSH_ROOT_PASSWORD_LOGIN", karte.GradeD, map[string]string{"where": where(locs, "permitrootlogin")})
+			add("SSH_ROOT_PASSWORD_LOGIN", karte.GradeE, map[string]string{"where": where(locs, "permitrootlogin")})
 		} else {
 			add("SSH_ROOT_LOGIN", karte.GradeB, map[string]string{"where": where(locs, "permitrootlogin")})
 		}
