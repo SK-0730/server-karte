@@ -88,6 +88,72 @@ var catalog = map[string]entry{
 			"2. docker-compose なら ports: に \"127.0.0.1:ポート:ポート\" と書きます。\n" +
 			"3. 直したら、もう一度診断して確かめます。",
 	},
+	// --- SSH設定診断 ---
+	"SSH_PASSWORD_LOGIN": {
+		Title: "SSHにパスワードでログインできる設定です",
+		What:  "SSHの設定 PasswordAuthentication が yes（パスワードでのログインを許可）になっています。設定の場所：{where}",
+		Why: "SSHはインターネット中から常に「パスワードの総当たり」を受けています。パスワードでログインできると、" +
+			"推測されやすいパスワードや使い回しのパスワードを当てられて、サーバーを乗っ取られるおそれがあります。" +
+			"鍵でのログインに切り替えると、鍵ファイルを持っている人しかログインできなくなります。",
+		HowToFix: "1. 自分のパソコンで鍵を作り（ssh-keygen -t ed25519）、サーバーに登録します（ssh-copy-id ユーザー名@サーバー）。\n" +
+			"2. 鍵でログインできることを、別のウィンドウで必ず確かめます（確かめずに次へ進むと、自分も締め出されます）。\n" +
+			"3. 上に表示された場所の PasswordAuthentication を no に書き換えます。\n" +
+			"   （Ubuntu では /etc/ssh/sshd_config.d/ の中のファイルが、本体の sshd_config より優先されます。本体だけ直しても変わらないことがあります）\n" +
+			"4. sudo systemctl restart ssh で設定を読み込み直し、もう一度診断して確かめます。",
+	},
+	"SSH_KBDINTERACTIVE_LOGIN": {
+		Title: "別の方式（キーボード対話認証）で、パスワードログインができる設定です",
+		What: "PasswordAuthentication は no ですが、{key} が yes になっているため、パスワードを聞かれてログインできる状態です。" +
+			"設定の場所：{where}",
+		Why: "キーボード対話認証は、名前は違っても、中身はパスワードでのログインと同じように使えます。" +
+			"PasswordAuthentication だけを no にして「パスワードログインを止めたつもり」になってしまう、つまずきやすい点です。",
+		HowToFix: "1. 鍵でログインできることを、別のウィンドウで確かめます。\n" +
+			"2. 上に表示された場所の {key} を no に書き換えます（書かれていなければ、/etc/ssh/sshd_config に追記します）。\n" +
+			"3. sudo systemctl restart ssh で設定を読み込み直し、もう一度診断して確かめます。",
+	},
+	"SSH_EMPTY_PASSWORD": {
+		Title: "パスワードが空のユーザーでも、SSHでログインできる設定です",
+		What:  "SSHの設定 PermitEmptyPasswords が yes になっています。設定の場所：{where}",
+		Why:   "パスワードを設定していないユーザーが1人でもいると、誰でもユーザー名だけでログインできてしまいます。",
+		HowToFix: "1. 上に表示された場所の PermitEmptyPasswords を no に書き換えます（初期値は no なので、行ごと消しても構いません）。\n" +
+			"2. sudo systemctl restart ssh で設定を読み込み直し、もう一度診断して確かめます。",
+	},
+	"SSH_ROOT_PASSWORD_LOGIN": {
+		Title: "管理者（root）にパスワードでSSHログインできる設定です",
+		What:  "SSHの設定 PermitRootLogin が yes になっていて、パスワードでのログインも許可されています。設定の場所：{where}",
+		Why:   "root はどのサーバーにもいるユーザー名なので、総当たりでいちばん狙われます。当てられると、最初からサーバーのすべてを操作されます。",
+		HowToFix: "1. 普段は一般ユーザーでログインし、必要なときだけ sudo を使うようにします。\n" +
+			"2. 上に表示された場所の PermitRootLogin を no（または prohibit-password）に書き換えます。\n" +
+			"3. sudo systemctl restart ssh で設定を読み込み直し、もう一度診断して確かめます。",
+	},
+	"SSH_ROOT_LOGIN": {
+		Title: "管理者（root）に直接SSHログインできる設定です",
+		What:  "SSHの設定 PermitRootLogin が yes になっています（パスワードでのログインは無効なので、鍵があれば root でログインできます）。設定の場所：{where}",
+		Why:   "鍵が漏れたときに、いきなり root の権限を取られます。また、誰が作業したかの記録も残りにくくなります。",
+		HowToFix: "1. 普段は一般ユーザーでログインし、必要なときだけ sudo を使うようにします。\n" +
+			"2. 上に表示された場所の PermitRootLogin を no（または prohibit-password）に書き換えます。\n" +
+			"3. sudo systemctl restart ssh で設定を読み込み直し、もう一度診断して確かめます。",
+	},
+	"SSH_PUBKEY_DISABLED": {
+		Title: "鍵でのSSHログインが無効になっています",
+		What:  "SSHの設定 PubkeyAuthentication が no になっています。設定の場所：{where}",
+		Why:   "鍵でのログインは、パスワードより安全なログイン方法です。無効だと、パスワードでのログインに頼るしかなくなります。",
+		HowToFix: "1. 上に表示された場所の PubkeyAuthentication を yes に書き換えます（初期値は yes なので、行ごと消しても構いません）。\n" +
+			"2. sudo systemctl restart ssh で設定を読み込み直し、もう一度診断して確かめます。",
+	},
+	"SSH_CONFIG_UNKNOWN": {
+		Title: "SSHの設定を読み取れませんでした",
+		What:  "sshd -T（実際に使われている設定を表示するコマンド）を実行できませんでした。",
+		Why:   "設定が分からないと、パスワードでログインできるかどうかを判断できません。",
+		HowToFix: "1. サーバーで sudo sshd -T を実行し、エラーが出ないか確かめます。\n" +
+			"2. 設定ファイルに書き間違いがあると、このコマンドは失敗します。表示されたエラーの行を直します。",
+	},
+	"SSH_KEY_ONLY": {
+		Title:    "SSHには鍵でのみログインできる設定です",
+		What:     "パスワードでのログインは無効で、鍵でのログインが有効になっています。root での直接ログインも、パスワードでは許可されていません。",
+		Why:      "鍵ファイルを持っている人しかログインできないため、パスワードの総当たりを受けても心配ありません。",
+		HowToFix: "このままで大丈夫です。鍵ファイル（秘密鍵）は人に渡さず、パスフレーズを付けて保管しましょう。",
+	},
 	"PORT_NONE_PUBLIC": {
 		Title:    "外部から届くポートはありませんでした",
 		What:     "外部からの接続を待ち受けているポートは見つかりませんでした。",
