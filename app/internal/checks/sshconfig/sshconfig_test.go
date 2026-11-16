@@ -102,7 +102,7 @@ func TestAnalyzeKbdInteractive(t *testing.T) {
 	if got := codes(res); len(got) != 1 || got[0] != "SSH_KBDINTERACTIVE_LOGIN" || res.Grade != karte.GradeD {
 		t.Fatalf("所見 = %v 判定 = %s", got, res.Grade)
 	}
-	if !strings.Contains(res.Findings[0].What, "kbdinteractiveauthentication") {
+	if !strings.Contains(res.Findings[0].What, "KbdInteractiveAuthentication") {
 		t.Errorf("項目名が説明に入っていない: %s", res.Findings[0].What)
 	}
 
@@ -126,7 +126,7 @@ func TestAnalyzeOldChallengeResponse(t *testing.T) {
 	if got := codes(res); len(got) != 1 || got[0] != "SSH_KBDINTERACTIVE_LOGIN" {
 		t.Fatalf("所見 = %v", got)
 	}
-	if !strings.Contains(res.Findings[0].What, "challengeresponseauthentication") {
+	if !strings.Contains(res.Findings[0].What, "ChallengeResponseAuthentication") {
 		t.Errorf("%s", res.Findings[0].What)
 	}
 }
@@ -211,5 +211,55 @@ func TestRunSshdFails(t *testing.T) {
 	}
 	if got := codes(res); len(got) != 1 || got[0] != "SSH_CONFIG_UNKNOWN" || res.Grade != karte.GradeC {
 		t.Errorf("%+v", res)
+	}
+}
+
+func TestHowToFixFollowsPlace(t *testing.T) {
+	// 書かれている場所があるときは、その場所を書き換えるよう案内する
+	res := Analyze(ParseEffective(effHoles), ParseWhere(whereHoles))
+	fix := res.Findings[0].HowToFix
+	if !strings.Contains(fix, "上に表示された場所の PasswordAuthentication を no に書き換えます") {
+		t.Errorf("場所ありの直し方: %s", fix)
+	}
+
+	// どこにも書かれていない（初期値の yes が使われている）ときは、書き足すよう案内する（patient01 で実際に起きた）
+	res = Analyze(ParseEffective(effHoles), nil)
+	fix = res.Findings[0].HowToFix
+	if strings.Contains(fix, "上に表示された場所") || !strings.Contains(fix, "「PasswordAuthentication no」") {
+		t.Errorf("場所なしの直し方: %s", fix)
+	}
+	if strings.Contains(fix, "{") {
+		t.Errorf("差し込み忘れ: %s", fix)
+	}
+}
+
+// patient01（Ubuntu 20.04.6）で 11/16 に実際に取った出力。
+// PasswordAuthentication はどこにも書かれておらず、初期値の yes が使われている。
+const effPatient01 = `passwordauthentication yes
+kbdinteractiveauthentication no
+challengeresponseauthentication no
+usepam yes
+permitrootlogin without-password
+permitemptypasswords no
+pubkeyauthentication yes
+`
+
+const wherePatient01 = `/etc/ssh/sshd_config:63:ChallengeResponseAuthentication no
+`
+
+func TestPatient01(t *testing.T) {
+	res := Analyze(ParseEffective(effPatient01), ParseWhere(wherePatient01))
+	if res.Grade != karte.GradeD {
+		t.Errorf("判定 = %s, want D", res.Grade)
+	}
+	if got := codes(res); len(got) != 1 || got[0] != "SSH_PASSWORD_LOGIN" {
+		t.Fatalf("所見 = %v", got)
+	}
+	f := res.Findings[0]
+	if !strings.Contains(f.What, "設定ファイルには書かれていません") {
+		t.Errorf("場所: %s", f.What)
+	}
+	if !strings.Contains(f.HowToFix, "「#PasswordAuthentication」で始まる行") {
+		t.Errorf("直し方: %s", f.HowToFix)
 	}
 }

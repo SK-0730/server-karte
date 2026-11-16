@@ -182,13 +182,16 @@ function FindingBody({finding, check, maskTargets}: {
         }
     }
 
+    // 問題なし（A）の所見は、危ないところがないので見出しを変える
+    const ok = finding.grade === 'A';
+
     return (
         <div className="finding-body">
             <h3>何が起きている？</h3>
             <p>{finding.what}</p>
-            <h3>なぜ危ない？</h3>
+            <h3>{ok ? 'なぜ大丈夫？' : 'なぜ危ない？'}</h3>
             <p>{finding.why}</p>
-            <h3>どう直す？</h3>
+            <h3>{ok ? 'このあとは？' : 'どう直す？'}</h3>
             <p className="steps-text">{finding.howToFix}</p>
             {finding.grade !== 'A' && (
                 <>

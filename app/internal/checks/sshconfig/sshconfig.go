@@ -153,30 +153,32 @@ func Analyze(eff map[string]string, locs []Location) karte.CheckResult {
 	}
 
 	if password {
-		add("SSH_PASSWORD_LOGIN", karte.GradeD, map[string]string{"where": where(locs, "passwordauthentication")})
+		add("SSH_PASSWORD_LOGIN", karte.GradeD, place(locs, "passwordauthentication", "no"))
 	} else if kbd {
 		key := "kbdinteractiveauthentication"
 		if !yes(key) {
 			key = "challengeresponseauthentication"
 		}
-		add("SSH_KBDINTERACTIVE_LOGIN", karte.GradeD, map[string]string{"key": key, "where": where(locs, key)})
+		p := place(locs, key, "no")
+		p["key"] = displayName[key]
+		add("SSH_KBDINTERACTIVE_LOGIN", karte.GradeD, p)
 	}
 
 	if passwordLike && yes("permitemptypasswords") {
-		add("SSH_EMPTY_PASSWORD", karte.GradeE, map[string]string{"where": where(locs, "permitemptypasswords")})
+		add("SSH_EMPTY_PASSWORD", karte.GradeE, place(locs, "permitemptypasswords", "no"))
 	}
 
 	switch eff["permitrootlogin"] {
 	case "yes":
 		if passwordLike {
-			add("SSH_ROOT_PASSWORD_LOGIN", karte.GradeE, map[string]string{"where": where(locs, "permitrootlogin")})
+			add("SSH_ROOT_PASSWORD_LOGIN", karte.GradeE, place(locs, "permitrootlogin", "no"))
 		} else {
-			add("SSH_ROOT_LOGIN", karte.GradeB, map[string]string{"where": where(locs, "permitrootlogin")})
+			add("SSH_ROOT_LOGIN", karte.GradeB, place(locs, "permitrootlogin", "no"))
 		}
 	}
 
 	if eff["pubkeyauthentication"] == "no" {
-		add("SSH_PUBKEY_DISABLED", karte.GradeC, map[string]string{"where": where(locs, "pubkeyauthentication")})
+		add("SSH_PUBKEY_DISABLED", karte.GradeC, place(locs, "pubkeyauthentication", "yes"))
 	}
 
 	if len(findings) == 0 {
@@ -201,8 +203,20 @@ func Analyze(eff map[string]string, locs []Location) karte.CheckResult {
 	return res
 }
 
-// where は設定が書かれている場所を、説明文に差し込む文にする。
-func where(locs []Location, key string) string {
+// displayName は設定項目の、設定ファイルでの書き方。
+var displayName = map[string]string{
+	"passwordauthentication":          "PasswordAuthentication",
+	"kbdinteractiveauthentication":    "KbdInteractiveAuthentication",
+	"challengeresponseauthentication": "ChallengeResponseAuthentication",
+	"permitrootlogin":                 "PermitRootLogin",
+	"permitemptypasswords":            "PermitEmptyPasswords",
+	"pubkeyauthentication":            "PubkeyAuthentication",
+}
+
+// place は、設定が書かれている場所（where）と、その場所に合わせた直し方（edit）を作る。
+// want は直したあとの値。
+func place(locs []Location, key, want string) map[string]string {
+	name := displayName[key]
 	var hits []string
 	for _, l := range locs {
 		if l.Key == key {
@@ -210,7 +224,15 @@ func where(locs []Location, key string) string {
 		}
 	}
 	if len(hits) == 0 {
-		return "設定ファイルには書かれていません（sshd の初期値が使われています）"
+		return map[string]string{
+			"where": "設定ファイルには書かれていません（sshd の初期値が使われています）",
+			// ファイルの最後に書くと Match の中に入ってしまうことがあるため、先頭近くに書いてもらう
+			"edit": fmt.Sprintf("sudo nano /etc/ssh/sshd_config で設定ファイルを開き、「#%s」で始まる行があれば先頭の # を消して「%s %s」にします"+
+				"（行がなければ、ファイルの先頭近くに「%s %s」を1行書き足します）", name, name, want, name, want),
+		}
 	}
-	return strings.Join(hits, "、")
+	return map[string]string{
+		"where": strings.Join(hits, "、"),
+		"edit":  fmt.Sprintf("上に表示された場所の %s を %s に書き換えます（場所が複数あるときは、すべて書き換えます）", name, want),
+	}
 }
