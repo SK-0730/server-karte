@@ -231,3 +231,29 @@ func TestRunFindFails(t *testing.T) {
 		t.Error("find が失敗したらエラーを返すはず")
 	}
 }
+
+// patient01（Ubuntu 20.04、nginx・Apache の初期設定）で 11/19 に実際に取った出力。
+const docPatient01 = "\troot /var/www/html;\n\tDocumentRoot /var/www/html\n"
+
+const findPatient01 = `/var/www/html/phpinfo.php
+/var/www/html/.git
+/var/www/html/backup.sql
+/var/www/html/.env
+/var/www/html/index.html.bak
+/var/www/app/.env
+`
+
+func TestPatient01(t *testing.T) {
+	roots := ParseDocRoots(docPatient01)
+	if len(roots) != 1 || roots[0] != "/var/www/html" {
+		t.Fatalf("nginx と Apache の同じ場所は1つにまとめる: %v", roots)
+	}
+	res := Analyze(Classify(findPatient01, roots), roots, "/var/www", rootOK)
+	want := []string{"FILE_ENV_PUBLIC", "FILE_GIT_PUBLIC", "FILE_DUMP_PUBLIC", "FILE_BACKUP_PUBLIC", "FILE_PHPINFO_PUBLIC", "FILE_SENSITIVE_PRIVATE"}
+	if got := codes(res); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("所見 = %v\nwant %v", got, want)
+	}
+	if res.Grade != karte.GradeE || res.Summary != "Webから見えるファイル 5件" {
+		t.Errorf("%s %q", res.Grade, res.Summary)
+	}
+}
