@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {karte, main} from '../../wailsjs/go/models';
 import {mask, MaskTargets} from '../mask';
 
-// まだ作っていない診断（WBS 4.3〜4.4）も、一覧には「準備中」として並べる
+// まだ作っていない診断（WBS 4.4）も、一覧には「準備中」として並べる
 const ALL_CHECKS = [
     {id: 'ports', name: 'ポート診断'},
     {id: 'sshconfig', name: 'SSH設定診断'},
@@ -188,7 +188,7 @@ function FindingBody({finding, check, maskTargets}: {
     return (
         <div className="finding-body">
             <h3>何が起きている？</h3>
-            <p>{finding.what}</p>
+            <p className="steps-text">{finding.what}</p>
             <h3>{ok ? 'なぜ大丈夫？' : 'なぜ危ない？'}</h3>
             <p>{finding.why}</p>
             <h3>{ok ? 'このあとは？' : 'どう直す？'}</h3>

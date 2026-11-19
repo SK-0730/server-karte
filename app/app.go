@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"app/internal/checks/files"
 	"app/internal/checks/ports"
 	"app/internal/checks/sshconfig"
 	"app/internal/karte"
@@ -169,7 +170,7 @@ func (a *App) SelectKeyFile() (string, error) {
 	})
 }
 
-// Diagnose は受付票の内容でサーバーに接続し、OS判定・sudoの確認のあと、各診断を行う（WBS 3.1〜4.2）。
+// Diagnose は受付票の内容でサーバーに接続し、OS判定・sudoの確認のあと、各診断を行う（WBS 3.1〜4.3）。
 func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	startedAt := time.Now()
 	base := a.ctx
@@ -238,7 +239,7 @@ func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	}
 	a.emitProgress("os", "done", info.Name+" "+info.VersionID)
 
-	// ③ 各診断（不要ファイル・パッケージ更新は WBS 4.3〜4.4 で追加する）
+	// ③ 各診断（パッケージ更新は WBS 4.4 で追加する）
 	var checks []karte.CheckResult
 
 	a.emitProgress(ports.CheckID, "running", "")
@@ -262,6 +263,17 @@ func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	}
 	checks = append(checks, sshRes)
 	a.emitProgress(sshconfig.CheckID, "done", sshRes.Summary)
+
+	a.emitProgress(files.CheckID, "running", "")
+	fileRes, err := files.Run(ctx, client, form.WebRoot)
+	if err != nil {
+		if ctx.Err() != nil {
+			return canceledResult()
+		}
+		return ConnectionResult{Status: "error", Message: "不要ファイル診断の途中で失敗しました。もう一度お試しください（" + err.Error() + "）", OS: info}
+	}
+	checks = append(checks, fileRes)
+	a.emitProgress(files.CheckID, "done", fileRes.Summary)
 
 	overall := karte.GradeA
 	for _, c := range checks {
