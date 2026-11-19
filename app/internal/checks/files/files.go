@@ -32,8 +32,10 @@ const (
 	// DefaultRoot は受付票の公開フォルダが空欄のときに探す場所（11/9 決定）。
 	DefaultRoot = "/var/www"
 
-	// 公開フォルダの設定を探す。ないフォルダがあっても grep は見つかった分を出す
-	cmdDocRoots = `grep -rhiE '^[[:space:]]*(root|documentroot)[[:space:]]' /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled`
+	// 公開フォルダの設定を探す。ないフォルダがあっても grep は見つかった分を出す。
+	// sites-enabled の中身は sites-available へのシンボリックリンクなので、-R（リンクもたどる）にする
+	// （-r だとたどらず、Ubuntu の初期設定の root を見落とす。11/19 patient01 で発生）
+	cmdDocRoots = `grep -RhiE '^[[:space:]]*(root|documentroot)[[:space:]]' /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/apache2/sites-enabled`
 
 	maxDepth  = 8  // 深すぎるフォルダまでは探さない
 	maxListed = 10 // 所見に並べるファイルの数
