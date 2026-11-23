@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {karte, main} from '../../wailsjs/go/models';
 import {mask, MaskTargets} from '../mask';
 
-// まだ作っていない診断（WBS 4.4）も、一覧には「準備中」として並べる
+// 結果のない診断も、一覧には「準備中」として並べる
 const ALL_CHECKS = [
     {id: 'ports', name: 'ポート診断'},
     {id: 'sshconfig', name: 'SSH設定診断'},

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"app/internal/checks/files"
+	"app/internal/checks/packages"
 	"app/internal/checks/ports"
 	"app/internal/checks/sshconfig"
 	"app/internal/karte"
@@ -239,7 +240,7 @@ func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	}
 	a.emitProgress("os", "done", info.Name+" "+info.VersionID)
 
-	// ③ 各診断（パッケージ更新は WBS 4.4 で追加する）
+	// ③ 各診断
 	var checks []karte.CheckResult
 
 	a.emitProgress(ports.CheckID, "running", "")
@@ -274,6 +275,17 @@ func (a *App) Diagnose(form ReceptionForm) ConnectionResult {
 	}
 	checks = append(checks, fileRes)
 	a.emitProgress(files.CheckID, "done", fileRes.Summary)
+
+	a.emitProgress(packages.CheckID, "running", "")
+	pkgRes, err := packages.Run(ctx, client, info.VersionID)
+	if err != nil {
+		if ctx.Err() != nil {
+			return canceledResult()
+		}
+		return ConnectionResult{Status: "error", Message: "パッケージ更新診断の途中で失敗しました。もう一度お試しください（" + err.Error() + "）", OS: info}
+	}
+	checks = append(checks, pkgRes)
+	a.emitProgress(packages.CheckID, "done", pkgRes.Summary)
 
 	overall := karte.GradeA
 	for _, c := range checks {
