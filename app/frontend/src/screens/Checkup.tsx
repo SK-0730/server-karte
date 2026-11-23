@@ -8,7 +8,7 @@ export type Step = {
     label: string;
     status: StepStatus;
     detail?: string;
-    ready: boolean; // false の診断はまだ作っていない（WBS 4.4）
+    ready: boolean; // false の診断はまだ作っていない
 };
 
 export const initialSteps = (): Step[] => [
@@ -17,7 +17,7 @@ export const initialSteps = (): Step[] => [
     {id: 'ports', label: 'ポート診断', status: 'waiting', ready: true},
     {id: 'sshconfig', label: 'SSH設定診断', status: 'waiting', ready: true},
     {id: 'files', label: '不要ファイル診断', status: 'waiting', ready: true},
-    {id: 'packages', label: 'パッケージ更新診断', status: 'waiting', ready: false},
+    {id: 'packages', label: 'パッケージ更新診断', status: 'waiting', ready: true},
 ];
 
 type Props = {
